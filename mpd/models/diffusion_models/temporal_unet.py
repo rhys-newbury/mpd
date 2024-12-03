@@ -9,7 +9,7 @@ from torch.nn import DataParallel
 from mpd.models.layers.layers import GaussianFourierProjection, Downsample1d, Conv1dBlock, Upsample1d, \
     ResidualTemporalBlock, TimeEncoder, MLP, group_norm_n_groups, LinearAttention, PreNorm, Residual, TemporalBlockMLP
 from mpd.models.layers.layers_attention import SpatialTransformer
-
+import torch.nn.functional as F
 
 UNET_DIM_MULTS = {
     0: (1, 2, 4),
@@ -37,7 +37,7 @@ class TemporalUnet(nn.Module):
 
         self.state_dim = state_dim
         input_dim = state_dim
-
+        
         # Conditioning
         if conditioning_type is None or conditioning_type == 'None':
             conditioning_type = None
@@ -109,10 +109,13 @@ class TemporalUnet(nn.Module):
 
             if not is_last:
                 n_support_points = n_support_points * 2
-
+        
+        horizon = 64
         self.final_conv = nn.Sequential(
             Conv1dBlock(unet_input_dim, unet_input_dim, kernel_size=5, n_groups=group_norm_n_groups(unet_input_dim)),
             nn.Conv1d(unet_input_dim, state_dim, 1),
+            nn.Flatten(),
+            nn.Linear(horizon * state_dim, (horizon * state_dim) ** 2 + (horizon * state_dim))
         )
 
     def forward(self, x, time, context):
@@ -166,10 +169,22 @@ class TemporalUnet(nn.Module):
 
         x = self.final_conv(x)
 
-        x = einops.rearrange(x, 'b c h -> b h c')
+        # x = einops.rearrange(x, 'b c h -> b h c')
 
-        return x
+        # print("***********")
+        # print(self.state_dim)
+        entries, logeigenvals = torch.split(x, ((64 * self.state_dim)**2, (64 * self.state_dim)), dim=-1)
+        # print(x.shape, entries.shape, logeigenvals.shape)
+        square_mat = entries.reshape(x.shape[0], (64 * self.state_dim), (64 * self.state_dim))
+        # print(square_mat.shape)
+        eigenvals = F.softplus(logeigenvals) # * beta + beta_bar * 1 + 1e-6
+        # print(eigenvals.shape)
+        eigmat, _ = torch.linalg.qr(square_mat)
+        # print(eigmat.shape)
+        VS = torch.matmul(eigmat, torch.diag_embed(eigenvals))
+        cov = torch.matmul(VS, eigmat.permute((0, 2, 1)))
 
+        return VS, cov
 
 class EnvModel(nn.Module):
 

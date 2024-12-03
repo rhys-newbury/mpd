@@ -333,23 +333,58 @@ class GaussianDiffusionModel(nn.Module, ABC):
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         x_noisy = apply_hard_conditioning(x_noisy, hard_conds)
+        
+        alphas = 1 - self.betas
+        
+
+        extracted_alphas = extract(1 - self.betas, t, x_start.shape)
+        alphas_cumprod_prev = extract(self.alphas_cumprod_prev, t, x_start.shape)
+        alphas_cumprod = extract(self.alphas_cumprod, t, x_start.shape)        
+        betas = extract(self.betas, t, x_start.shape)
+
+        # print("extracted_alphas", extracted_alphas.shape)
+        # print("betas", betas.shape)
+        # print("alphas_cumprod_prev", alphas_cumprod_prev.shape)
+        # print("alphas_cumprod", alphas_cumprod.shape)
+
+        # print("x_noisy", x_noisy.shape)
+        # print("x_start", x_start.shape)
+
+
+        
+        mu_q = ((extracted_alphas * (1 - alphas_cumprod_prev) * x_noisy + torch.sqrt(alphas_cumprod_prev) * betas * x_start) / (1 - alphas_cumprod)).reshape(x_start.shape[0], -1)
+        # print("mu_q", mu_q.shape)
+        sigma_q = (1e-5 + (betas * (1 - alphas_cumprod_prev) / (1 - alphas_cumprod))) * torch.eye(mu_q.shape[1], device=x_start.device)
+        # print("sigma_q", sigma_q.shape)
+        # print(betas, alphas_cumprod, alphas_cumprod_prev)
+        # print("cholesky", torch.linalg.cholesky_ex(sigma_q).info)
+        
+        dist_1 = torch.distributions.multivariate_normal.MultivariateNormal(mu_q, sigma_q)
+        
+        
+        
+        VS, cov = self.model(x_noisy, t, context)
+
+        dist_2 = torch.distributions.multivariate_normal.MultivariateNormal(x_noisy.reshape(x_start.shape[0], -1), cov)
+        
+        loss = torch.distributions.kl.kl_divergence(dist_1, dist_2).mean()
+        
 
         # context model
         if context is not None:
             context = self.context_model(context)
 
         # diffusion model
-        x_recon = self.model(x_noisy, t, context)
-        x_recon = apply_hard_conditioning(x_recon, hard_conds)
+        # x_recon = apply_hard_conditioning(x_recon, hard_conds)
 
-        assert noise.shape == x_recon.shape
+        # assert noise.shape == x_recon.shape
 
-        if self.predict_epsilon:
-            loss, info = self.loss_fn(x_recon, noise)
-        else:
-            loss, info = self.loss_fn(x_recon, x_start)
+        # if self.predict_epsilon:
+        #     loss, info = self.loss_fn(x_recon, noise)
+        # else:
+        #     loss, info = self.loss_fn(x_recon, x_start)
 
-        return loss, info
+        return loss, {}
 
     def loss(self, x, context, *args):
         batch_size = x.shape[0]

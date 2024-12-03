@@ -201,19 +201,19 @@ def train(model=None, train_dataloader=None, epochs=None, lr=None, steps_til_sum
 
                     train_losses_l.append((train_steps_current, train_losses_log))
 
-                    with TimerCUDA() as t_training_summary:
-                        do_summary(
-                            summary_fn,
-                            train_steps_current,
-                            ema_model if ema_model is not None else model,
-                            train_batch_dict,
-                            train_losses_info,
-                            train_subset,
-                            prefix='TRAINING ',
-                            debug=debug,
-                            tensor_args=tensor_args
-                        )
-                    print(f"t_training_summary: {t_training_summary.elapsed:.4f} sec")
+                    # with TimerCUDA() as t_training_summary:
+                    #     do_summary(
+                    #         summary_fn,
+                    #         train_steps_current,
+                    #         ema_model if ema_model is not None else model,
+                    #         train_batch_dict,
+                    #         train_losses_info,
+                    #         train_subset,
+                    #         prefix='TRAINING ',
+                    #         debug=debug,
+                    #         tensor_args=tensor_args
+                    #     )
+                    # print(f"t_training_summary: {t_training_summary.elapsed:.4f} sec")
 
                     ################################################################################################
                     # VALIDATION LOSS and SUMMARY
@@ -225,6 +225,7 @@ def train(model=None, train_dataloader=None, epochs=None, lr=None, steps_til_sum
                             total_val_loss = 0.
                             for step_val, batch_dict_val in enumerate(val_dataloader):
                                 batch_dict_val = dict_to_device(batch_dict_val, tensor_args['device'])
+                                # print(loss_fn)
                                 val_loss, val_loss_info = loss_fn(
                                     model, batch_dict_val, val_subset.dataset, step=train_steps_current)
                                 for name, value in val_loss.items():
@@ -236,7 +237,9 @@ def train(model=None, train_dataloader=None, epochs=None, lr=None, steps_til_sum
                                     break
 
                             validation_losses = {}
+                        
                             for loss_name, loss in val_losses.items():
+                                # print("loss shape: ", np.array(loss).shape)
                                 single_loss = np.mean(loss).item()
                                 validation_losses[f'VALIDATION {loss_name}'] = single_loss
                             print("... finished validation.")
@@ -248,19 +251,19 @@ def train(model=None, train_dataloader=None, epochs=None, lr=None, steps_til_sum
                         validation_losses_l.append((train_steps_current, validation_losses_log))
 
                         # The validation summary is done only on one batch of the validation data
-                        with TimerCUDA() as t_validation_summary:
-                            do_summary(
-                                summary_fn,
-                                train_steps_current,
-                                ema_model if ema_model is not None else model,
-                                batch_dict_val,
-                                val_loss_info,
-                                val_subset,
-                                prefix='VALIDATION ',
-                                debug=debug,
-                                tensor_args=tensor_args
-                            )
-                        print(f"t_valididation_summary: {t_validation_summary.elapsed:.4f} sec")
+                        # with TimerCUDA() as t_validation_summary:
+                        #     do_summary(
+                        #         summary_fn,
+                        #         train_steps_current,
+                        #         ema_model if ema_model is not None else model,
+                        #         batch_dict_val,
+                        #         val_loss_info,
+                        #         val_subset,
+                        #         prefix='VALIDATION ',
+                        #         debug=debug,
+                        #         tensor_args=tensor_args
+                        #     )
+                        # print(f"t_valididation_summary: {t_validation_summary.elapsed:.4f} sec")
 
                     wandb.log({**train_losses_log, **validation_losses_log}, step=train_steps_current)
 

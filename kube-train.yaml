@@ -1,0 +1,55 @@
+apiVersion: batch.volcano.sh/v1alpha1
+kind: Job
+metadata:
+  name: mpd
+spec:
+  maxRetry: 1
+  minAvailable: 1
+  schedulerName: volcano
+  queue: default
+  tasks:
+    - replicas: 1
+      name: train
+      template:
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: dkr-creds
+          securityContext:
+            runAsUser: 1000
+          nodeSelector:
+            nvidia.com/gpu.product: NVIDIA-GeForce-RTX-3090
+          containers:
+            - name: runner
+              image: mu00120825.eng.monash.edu.au:5021/mpd:latest
+              imagePullPolicy: Always
+              command: ["/bin/bash", "-c", "--"]
+              args: ["while true; do sleep 30; done;"]
+              
+                # [
+                #   /opt/conda/envs/mpd/bin/python,
+                #   launch_train_01.py
+                # ]
+              env:
+                - name: MPLCONFIGDIR
+                  value: "/app/cache"
+                - name: TRANSFORMERS_CACHE
+                  value: "/app/cache"
+
+              workingDir: /app/scripts/train_diffusion
+              resources:
+                requests:
+                  memory: 24Gi
+                  cpu: 4000m
+                  nvidia.com/gpu: 1
+                limits:
+                  memory: 36Gi
+                  cpu: 6000m
+                  nvidia.com/gpu: 1
+              volumeMounts:
+                - name: dshm
+                  mountPath: /dev/shm
+          volumes:             
+            - name: dshm
+              emptyDir:
+                medium: Memory

@@ -10,8 +10,7 @@ fi
 
 export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 
-eval "$(~/miniconda3/bin/conda shell.bash hook)"
-
+eval "$(/opt/conda/bin/conda shell.bash hook)"
 
 conda env create -f environment.yml
 
@@ -39,12 +38,12 @@ cd ${DEPS_DIR}/isaacgym/python                && pip install -e .
 echo "-------> Installing storm"
 cd ${DEPS_DIR}/storm                          && pip install -e .
 
-echo "-------> Installing this library"
-cd ${ROOT_DIR} && pip install -e .
+# echo "-------> Installing this library"
+# cd ${ROOT_DIR} && pip install -e .
 
 # ncurses is causing an error using the linux command watch, htop, ...
-conda remove --force ncurses --yes
+# conda remove --force ncurses --yes
 
-conda install -c "conda-forge/label/cf202003" gdown --yes
-pip install --upgrade --no-cache-dir gdown
+# conda install -c "conda-forge/label/cf202003" gdown --yes
+# pip install --upgrade --no-cache-dir gdown
 

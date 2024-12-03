@@ -28,7 +28,7 @@ from torch_robotics.visualizers.planning_visualizer import PlanningVisualizer
 allow_ops_in_compiled_graph()
 
 
-TRAINED_MODELS_DIR = '../../data_trained_models/'
+TRAINED_MODELS_DIR = "/app/scripts/train_diffusion/logs/train_diffusion_2024-12-02_07-18-50/dataset_subdir___EnvSimple2D-RobotPointMass/include_velocity___True/use_ema___True/variance_schedule___exponential/n_diffusion_steps___25/predict_epsilon___True/unet_dim_mults_option___0/0"
 
 
 @single_experiment_yaml
@@ -96,7 +96,7 @@ def experiment(
         raise NotImplementedError
 
     ########################################################################################################################
-    model_dir = os.path.join(TRAINED_MODELS_DIR, model_id)
+    model_dir = TRAINED_MODELS_DIR #os.path.join(TRAINED_MODELS_DIR, model_id)
     results_dir = os.path.join(model_dir, 'results_inference', str(seed))
     os.makedirs(results_dir, exist_ok=True)
 
